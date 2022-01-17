@@ -9,7 +9,7 @@ const uint8_t VS1053_CS_PIN = 6;
 const uint8_t VS1053_DCS_PIN = 10;
 const uint8_t VS1053_DREQ_PIN = 9;
 const uint8_t CARD_CS_PIN = 5;
-const uint8_t VOLUMNE_INPUT_PIN = A5;
+const uint8_t VOLUME_INPUT_PIN = A5;
 const uint8_t BATTERY_VOLTAGE_INPUT_PIN = A4;
 
 const uint8_t LOCATION_CHARS_TO_SKIP = strlen("Location: http://");
@@ -41,7 +41,7 @@ uint8_t audioPlayerChunk[AUDIO_PLAYER_CHUNK_SIZE];
 File bufferFile;
 
 void setup() {
-  pinMode(VOLUMNE_INPUT_PIN, INPUT_PULLUP);
+  pinMode(VOLUME_INPUT_PIN, INPUT_PULLUP);
   WiFi.setPins(8,7,4,2);
   Serial.begin(9600);
   
@@ -326,7 +326,7 @@ void writeToAudioBuffer( uint16_t chunkSize ) {
 }
 
 void updateVolume() {
-  uint16_t volumeControlValue = analogRead(VOLUMNE_INPUT_PIN);
+  uint16_t volumeControlValue = analogRead(VOLUME_INPUT_PIN);
   setVolume(volumeControlValue);
 }
 
