@@ -2,6 +2,8 @@
 
 Firmware for "Radyjko 357" - a standalone, battery-driven device for playing probably the best independent radio station in Poland: [Radio 357](https://radio357.pl/)
 
+[![Radyjko 357](/pics/yt.jpg)](https://youtu.be/wZRowB8RlqE "Radyjko 357")
+
 ## Hardware
 
 The device is basically a internet radio player. It is not limited to only "Radio 357" but can easily play any Revma stream with a simple configuration change. The stream can be either MP3 or AAC. The device can connect via WiFi to a Revma host and parse the redirection instruction that Revma uses to direct the client to the actual audio stream.
@@ -30,10 +32,6 @@ The housing of each speaker is mostly empty...
 
 ![alt text](/pics/P1160293.webp)
 
-The result can be seen in action on this video (click to open in YouTube):
-
-[![Radyjko 357](https://img.youtube.com/vi/wZRowB8RlqE/maxresdefault.jpg)](https://youtu.be/wZRowB8RlqE "Radyjko 357")
-
 ## Connections
 
 Since the _Feather M0_ and the _Music Maker_ are both "Feathers", they share the same pinout. I've used the _FeatherWing Doubler_ to connect the two boards and thus I did not have to solder any connections between them.
@@ -51,7 +49,6 @@ All I needed to do is to define the pins that _M0_ will use to control the _Musi
 | 5         | SD card chip select pin           |
 | A5        | Volume pot. input                 |
 | A4        | Battery voltage input             |
-
 
 
 ---
