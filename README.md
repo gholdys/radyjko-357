@@ -65,16 +65,16 @@ The program requires four libraries (available in Arduino IDE):
 - SD
 - Adafruit_VS1053
 
-There's also a header file with firmware patches for VS1053b - the MP3 decoder. **Applying those patches is crucial as without them, the Music Maker will not be able to play chunks of MP3 or AAC audio stream**. You will find the call that applies the patches in the `initAudioPlayer()` function. 
+There's also a header file (`vs1053b-patches.h`) with firmware patches for VS1053b - the MP3 decoder. **Applying those patches is crucial as without them, the Music Maker will not be able to play chunks of MP3 or AAC audio stream**. You will find the call that applies the patches in the `initAudioPlayer()` function. 
 
 Another piece of firmware that needs updating, for this whole contraption to work, is the ATWINC1500 WiFi module. The Arduino IDE contains a special tool for doing just that. The update procedure is a bit involved, but fortunately the folks at Adafruit did a good job at describing this process on this [website](https://learn.adafruit.com/adafruit-feather-m0-wifi-atwinc1500/updating-firmware).
 
 
 ### Configuration
 
-The configuration for "Radyjko 357" is stored on a microSD card. The card need to be in FAT32 format so that it can be read using the standard SD library for Arduino. Besides that, there are no special requirements. The amount of data stored on the card is quite small:
+The configuration for "Radyjko 357" is stored on a microSD card. The card needs to be in FAT32 format so that it can be read using the standard SD library for Arduino. Besides that, there are no special requirements. The amount of data stored on the card is quite small:
 - one configuration text file
-- few small MP3 files with jingles and warning sounds
+- one small MP3 file with a jingle
 
 The configuration file should be called `config.txt` and contain just three parameters:
 - `wifi-ssid`: SSID for your WiFi access point 
@@ -87,6 +87,6 @@ Thus, the file will look something like this (for playing AAC stream):
     wifi-password=<your WiFi password>
     stream-id=ye5kghkgcm0uv
 
-Besides the configuration file, the SD card will also need to store some MP3 files. At this point, only one is necessary: `jingle.mp3`. This file will be played by the player before it is ready to play the stream. It improves the perceived performance as the device does need a few seconds to connect to the WiFi access point then to Revma host and start playing the stream. Without the jingle, you would hear only silence for a few seconds and that could be a bit confusing. 
+Besides the configuration file, the SD card will also need to store a MP3 file called `jingle.mp3`. This file will be played by the player before it is ready to play the stream. It improves the perceived performance as the device does need a few seconds to connect to the WiFi access point, then to Revma host, parse the redirect response from Revma main server and then start playing the audio stream. Without the jingle, you would hear only silence for a few seconds and that could be a bit confusing - especially since the device has no screen or even blinking LEDs. 
 
 
