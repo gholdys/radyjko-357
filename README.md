@@ -6,7 +6,7 @@ Firmware for *Radyjko 357* - a standalone, battery-driven device for playing pro
 
 ## Hardware
 
-The device is basically a WiFi radio player. It is not limited only to "Radio 357". It can easily play any *Revma* stream with a simple configuration change. The stream can be either MP3 or AAC. The device can connect via WiFi to a *Revma* host and parse the redirection instruction that *Revma* uses to direct the client to the actual audio stream.
+The device is basically a WiFi radio player. It is actually not limited only to "Radio 357", but I've built it with this particular radio station in mind and tested it only on this radio station. The device can easily play any *Revma* stream with a simple configuration change. The stream can be either MP3 or AAC. The device can connect via WiFi to a *Revma* host and parse the redirection instruction that *Revma* uses to direct the client to the actual audio stream.
 
 I've built *Radyjko 357* around [Adafruit Feather M0 WiFi with ATWINC1500](https://www.adafruit.com/product/3010) and [Adafruit Music Maker FeatherWing](https://www.adafruit.com/product/3357). These are not the cheapest components for building an internet radio player, but this is what I had lying around and since they are part of the same system (Adafruit Feather), they are perfectly compatible. The loudspeaker was part of a two-piece set from *Tracer* called *Orlando 2.0* (shown below). It's a USB speaker set with an amplifier and volume control.
 
@@ -20,7 +20,7 @@ After connecting, the components looked like this:
 
 ![alt text](/pics/P1160287.webp)
 
-Note the volume control thingy in the bottom, right corner of the photo above. It contains a simple amplifier that works quite well in this setup even though it was meant to work with 5V and gets only 3.7V.
+Note the volume control thingy in the bottom, right corner of the photo above. It contains a simple amplifier that works quite well in this setup even though it was meant to work with 5V and gets only ~3.7V.
 
 The housing of each speaker is mostly empty...
 
@@ -113,3 +113,7 @@ The main loop does two things:
 
 The ring buffer is currently only 256kB long so it does require a rather stable connection.
 
+## Improvements
+The biggest missing feature is a low battery voltage warning. There should be some audio notification, that warns the user when the battery voltage drops below a certain level. Currently, the device simply turns off when the battery voltage is low. This behavior is controlled by the LiPo charging module and protects the battery from being discharged below a safe level. 
+
+Another useful feature, that I haven't implemented yet, is battery charging notification. There should be an audio notification, that would be played when the battery charging starts and another when the battery is fully charged.   
