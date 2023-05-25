@@ -17,12 +17,13 @@ const char INITIAL_HOST[] = "stream.rcs.revma.com";
 const uint16_t CHAR_BUFFER_SIZE = 512;
 const uint16_t AUDIO_READER_CHUNK_SIZE = 1024;
 const uint8_t AUDIO_PLAYER_CHUNK_SIZE = 32;
-const uint32_t AUDIO_BUFFER_SIZE = 256000;
-const uint32_t AUDIO_BUFFER_PLAY_THRESHOLD = 64000;
+const uint8_t AUDIO_PLAYER_CHUNK_BATCH = 32;
+const uint32_t AUDIO_BUFFER_SIZE = 250000;
+const uint32_t AUDIO_BUFFER_PLAY_THRESHOLD = 200000;
 
 WiFiClient webClient;
-String wifiSsid = "";
-String wifiPass = "";
+String wifiSsid[2];
+String wifiPass[2];
 String streamId = "";
 
 bool fetchingStreamUrl = false;
@@ -40,6 +41,11 @@ uint8_t audioPlayerChunk[AUDIO_PLAYER_CHUNK_SIZE];
 
 File bufferFile;
 
+unsigned long readStartTime = 0;
+unsigned long readTotalBytes = 0;
+unsigned long playStartTime = 0;
+unsigned long playTotalBytes = 0;
+
 void setup() {
   pinMode(VOLUME_INPUT_PIN, INPUT_PULLUP);
   WiFi.setPins(8,7,4,2);
@@ -50,9 +56,10 @@ void setup() {
   initSdCard();
   readConfig();
   initAudioPlayer();
+  checkBatteryLevel();
   initWiFi();
   fetchAudioStreamUrl();
-  waitForPlayer();
+  playJingle();  
 }
 
 void initSdCard() {
@@ -73,7 +80,7 @@ void readConfig() {
     while(1);
   }
 
-  char* delimeter = "=";
+  const char* delimeter = "=";
   const uint8_t bufferLength = 200;
   char buffer[bufferLength];
   char* key;
@@ -114,10 +121,14 @@ void setConfigParameter(char* key, char* value) {
   keyString.trim();
   valueString.trim();  
 
-  if ( keyString.equals(F("wifi-ssid")) ) {
-    wifiSsid = value;
-  } else if ( keyString.equals(F("wifi-password")) ) {
-    wifiPass = value;
+  if ( keyString.equals(F("wifi-ssid")) || keyString.equals(F("wifi-ssid-1")) ) {
+    wifiSsid[0] = value;
+  } else if ( keyString.equals(F("wifi-password")) || keyString.equals(F("wifi-password-1")) ) {
+    wifiPass[0] = value;
+  } else if ( keyString.equals(F("wifi-ssid-2")) ) {
+    wifiSsid[1] = value;
+  } else if ( keyString.equals(F("wifi-password-2")) ) {
+    wifiPass[1] = value;
   } else if ( keyString.equals(F("stream-id")) ) {
     streamId = value;
   }
@@ -139,10 +150,7 @@ void initAudioPlayer() {
     delay(100);
   }
   
-  updateVolume();
-
-  Serial.println(F("Playing jingle"));
-  audioPlayer.startPlayingFile("/jingle.mp3");
+  updateVolume();  
 }
 
 void initWiFi() {
@@ -154,20 +162,45 @@ void initWiFi() {
 
   // attempt to connect to WiFi network:
   int status = WL_IDLE_STATUS;
+  int accessPointIndex = 1;
   while (status != WL_CONNECTED) {
+    accessPointIndex = 1-accessPointIndex;
     Serial.print(F("Attempting to connect to SSID: "));
-    Serial.println(wifiSsid);
-    status = WiFi.begin(wifiSsid, wifiPass);
-
-    uint32_t waitMillis = 0;
-    while (status != WL_CONNECTED && waitMillis < 10000) {
-      updateVolume();
-      delay(100);
-      waitMillis += 100;
-    }
+    Serial.println(wifiSsid[accessPointIndex]);
+    status = WiFi.begin(wifiSsid[accessPointIndex], wifiPass[accessPointIndex]);    
   }
-  Serial.println(F("Connected to WiFi"));
+  Serial.print(F("Connected to: "));
   printWiFiStatus();
+}
+
+void checkBatteryLevel() {
+  float vBat = analogRead(BATTERY_VOLTAGE_INPUT_PIN);
+  vBat *= 2;    // we divided by 2, so multiply back
+  vBat *= 3.3;  // Multiply by 3.3V, our reference voltage
+  vBat /= 1024; // convert to voltage
+  Serial.print("VBat: " ); Serial.println(vBat);
+  
+  int count = 0;
+  if ( vBat > 4.0 ) {
+    count = 3;
+  } else if ( vBat > 3.3 ) {
+    count = 2;
+  } else {
+    count = 1;
+  }
+
+  for ( int i=0; i<count; i++) {
+    playAlarm();
+  }
+}
+
+void playJingle() {
+  Serial.println(F("Playing jingle"));
+  audioPlayer.startPlayingFile("/jingle.mp3");
+}
+
+void playAlarm() {
+  audioPlayer.playFullFile("/alarm.mp3");
 }
 
 void waitForPlayer() {
@@ -240,26 +273,39 @@ void readAudioStreamUrl() {
     findStreamUrl(charBuffer, host, path);
     openAudioStream(host, path);
 
+    if ( bufferFile ) {
+      Serial.println("Found an open buffer file. Closing...");
+      bufferFile.close();      
+    }
+
     bufferFile = SD.open("buffer", O_READ | O_WRITE);
+    audioBufferReadIndex = 0;
+    audioBufferWriteIndex = 0;
+    // waitForPlayer();
   }
 }
 
 void readAudioChunk() {
-  // if ( !webClient.available() ) {  
-  //   Serial.print(F("Can't read from network. Bytes in buffer: "));
-  //   Serial.println( getAudioBytesInBuffer() );    
-  // }
-
-  if ( webClient.available() && canWriteToAudioBuffer() ) {        
-    uint16_t len = webClient.read(audioReaderChunk, AUDIO_READER_CHUNK_SIZE);
-    writeToAudioBuffer(len);
+  int len = webClient.read(audioReaderChunk, AUDIO_READER_CHUNK_SIZE);
+  if ( len > 0 ) { 
+    if ( canWriteToAudioBuffer() ) {
+      writeToAudioBuffer(len);
+    }
+    readTotalBytes += len;
+    if ( millis() - readStartTime > 1000 ) {
+      Serial.print("Reading "); Serial.print(readTotalBytes); Serial.print(" bytes/second. Bytes in buffer: "); Serial.println( getAudioBytesInBuffer() );    
+      readStartTime = millis();
+      readTotalBytes = 0;
+    }
   }
   
   if (!webClient.connected()) {
     playingAudioStream = false;
     webClient.stop();
     Serial.println();
-    Serial.println(F("Connection closed"));
+    Serial.println(F("Connection closed. Reconnecting..."));
+    playAlarm();
+    fetchAudioStreamUrl();
   }
 }
 
@@ -268,13 +314,17 @@ void playAudioChunk() {
     if ( getAudioBytesInBuffer() < AUDIO_BUFFER_PLAY_THRESHOLD ) return;
     buffering = false;
   }
+
   updateVolume();
-  if ( audioPlayer.readyForData() && canReadFromAudioBuffer() ) {    
-    readFromAudioBuffer();
-    audioPlayer.playData(audioPlayerChunk, AUDIO_PLAYER_CHUNK_SIZE);
-  } else if ( !canReadFromAudioBuffer() ) {
-    Serial.println(F("Buffering..."));
-    buffering = true;
+  for ( int i=0; i<AUDIO_PLAYER_CHUNK_BATCH; i++ ) {
+    if ( audioPlayer.readyForData() && canReadFromAudioBuffer() ) {    
+      readFromAudioBuffer();
+      audioPlayer.playData(audioPlayerChunk, AUDIO_PLAYER_CHUNK_SIZE);
+    } else if ( !canReadFromAudioBuffer() ) {
+      Serial.println(F("Buffering..."));
+      buffering = true;
+      break;
+    }
   }
 }
 
@@ -283,7 +333,7 @@ uint32_t getAudioBytesInBuffer() {
 }
 
 bool canWriteToAudioBuffer() {
-  if ( audioBufferWriteIndex == 0 && audioBufferWriteIndex == audioBufferReadIndex ) { // Special case for startup buffering
+  if ( audioBufferWriteIndex == 0 && audioBufferReadIndex == 0 ) { // Special case for startup buffering
     return true;
   }
   return audioBufferWriteIndex+AUDIO_READER_CHUNK_SIZE < getUnwrappedReadIndex();
@@ -305,10 +355,16 @@ uint32_t getUnwrappedReadIndex() {
 void readFromAudioBuffer() {
   bufferFile.seek(audioBufferReadIndex);
   int r = bufferFile.read(audioPlayerChunk, AUDIO_PLAYER_CHUNK_SIZE);
+  playTotalBytes += r;
+  if ( millis() - playStartTime > 1000 ) {
+    Serial.print("Playing "); Serial.print(playTotalBytes); Serial.print(" bytes/second. Bytes in buffer: "); Serial.println( getAudioBytesInBuffer() );    
+    playStartTime = millis();
+    playTotalBytes = 0;
+  }
   audioBufferReadIndex = (audioBufferReadIndex+AUDIO_PLAYER_CHUNK_SIZE) % AUDIO_BUFFER_SIZE;
 }
 
-void writeToAudioBuffer( uint16_t chunkSize ) {
+void writeToAudioBuffer( int chunkSize ) {
   uint32_t chunkEndIndex = audioBufferWriteIndex+chunkSize;
   if ( chunkEndIndex < AUDIO_BUFFER_SIZE ) {
     bufferFile.seek(audioBufferWriteIndex);

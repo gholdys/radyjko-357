@@ -78,7 +78,7 @@ The configuration for *Radyjko 357* is stored on a microSD card. The card needs 
 - one configuration text file
 - one small MP3 file with a jingle
 
-The configuration file should be called `config.txt` and contain just three parameters:
+The configuration file should be called `config.txt` and, in its basic form, can contain only three parameters:
 - `wifi-ssid`: SSID for your WiFi access point 
 - `wifi-password`: the password for the WiFi access point
 - `stream-id`: *Revma* stream ID. For *Radio 357* these are 'ye5kghkgcm0uv' for AAC format and 'an1ugyygzk8uv' for MP3
@@ -89,7 +89,17 @@ Thus, the file will look something like this (for playing AAC stream):
     wifi-password=<your WiFi password>
     stream-id=ye5kghkgcm0uv
 
-Besides the configuration file, the SD card will also need to store a MP3 file called `jingle.mp3`. This file will be played by the player before it is ready to play the stream. It improves the perceived performance as the device does need a few seconds to connect to the WiFi access point, then to *Revma* host, parse the redirect response from *Revma* main server and then start playing the audio stream. Without the jingle, you would hear only silence for a few seconds and that could be a bit confusing - especially since the device has no screen or even blinking LEDs. 
+There's also an option to define a second access point like so:
+
+    wifi-ssid-1=<your WiFi #1 SSID>
+    wifi-password-1=<your WiFi #1 password>
+    wifi-ssid-2=<your WiFi #2 SSID>
+    wifi-password-2=<your WiFi #2 password>
+    stream-id=ye5kghkgcm0uv
+
+Besides the configuration file, the SD card will also need to store two MP3 files: `jingle.mp3` and `alarm,mp3`. The former will be played by the player before it is ready to play the stream while the latter is used for notifying the user about the battery level. Both sound files are played during startup and they improve the perceived performance as the device does need a few seconds to connect to the WiFi access point, then to *Revma* host, parse the redirect response from *Revma* main server and then start playing the audio stream. Without the jingle, you would hear only silence for a few seconds and that could be a bit confusing - especially since the device has no screen or even blinking LEDs. 
+
+For battery level notification, te device plays three tones in quick succession when the battery is full, two when it is half full and one when it should be recharged.
 
 ---
 
@@ -102,18 +112,16 @@ After turning the device on, the firmware does the following sequence of operati
 1. Initializes the SD card reader
 2. Reads the `config.txt` file
 3. Initializes the *VS1053b* audio decoder chip
-4. Starts playing the `jingle.mp3`
-5. In the meantime, initializes the *ATWINC1500* WiFi module
+4. Plays the battery level notification
+5. Initializes the *ATWINC1500* WiFi module
 6. Connects to `stream.rcs.revma.com` to obtain the URL for the audio stream
-7. Waits for the jingle to stop playing and starts the main program loop
+7. Starts playing the jingle
 
 The main loop does two things:
 1. Fetches the redirect instruction, parses it and opens the actual audio stream
 2. Reads a chunk of data from the audio stream and into a ring buffer and then reads another chunk from that buffer and into the *VS1053b* decoder.
 
-The ring buffer is currently only 256kB long so it does require a rather stable connection.
+The ring buffer is currently only 250kB long (constant `AUDIO_BUFFER_SIZE`) so it does require a rather stable connection.
 
 ## Improvements
-The biggest missing feature is a low battery voltage warning. There should be some audio notification, that warns the user when the battery voltage drops below a certain level. Currently, the device simply turns off when the battery voltage is low. This behavior is controlled by the LiPo charging module and protects the battery from being discharged below a safe level. 
-
-Another useful feature, that I haven't implemented yet, is battery charging notification. There should be an audio notification, that would be played when the battery charging starts and another when the battery is fully charged.   
+The *Revma* stream isn't infinite and after some time the connection is closed. The device is able to detect that and reconnect but it does so be restarting the whole streaming process and resetting the buffer. This creates a rather lengthy gap in the produced audio. It should be possible to restart the stream without clearing the buffer and thus reduce or eliminate the gap.
